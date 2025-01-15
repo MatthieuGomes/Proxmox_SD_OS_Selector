@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Variables
-USER_HOME=$(eval echo ~${SUDO_USER})
+USER_HOME=$(eval printf ~${SUDO_USER})
 PACKAGE_URL="https://github.com/muesli/deckmaster/releases/download/v0.9.0/deckmaster_0.9.0_linux_amd64.deb" # Remplacez par le lien du package
 PACKAGE_NAME=$(basename "$PACKAGE_URL") # Nom du package extrait du lien
 UDEV_RULES_FILE="/etc/udev/rules.d/99-streamdeck.rules"
@@ -9,177 +9,97 @@ SYSTEMD_PATH_FILE="$USER_HOME/.config/systemd/user/streamdeck.path"
 SYSTEMD_SERVICE_FILE="$USER_HOME/.config/systemd/user/streamdeck.service"
 PROXMOX_CONTROLLER_PATH="$USER_HOME/.config/proxmox_controller"
 
+STEP=1;
+MAX_STEP=12;
 # Vérifier si le script est exécuté avec les droits root pour certaines étapes
 if [ "$EUID" -ne 0 ]; then
-  echo "Ce script doit être exécuté en tant que root pour certaines étapes (e.g., création de fichiers dans /etc/udev)."
+  printf "Ce script doit être exécuté en tant que root pour certaines étapes (e.g., création de fichiers dans /etc/udev)."
   exit 1
 fi
 
-# Etape 4: Création du fichier start.sh
-echo "Création du fichier start.sh..."
+# Etape 1: Création du dossier de proxmox_controller
+printf "$STEP/$MAX_STEP Création du fichier start.sh...\n"
 mkdir -p "$PROXMOX_CONTROLLER_PATH"
 chown $SUDO_USER "$PROXMOX_CONTROLLER_PATH"
-cat <<EOF1 > "$PROXMOX_CONTROLLER_PATH/start.sh"
-#!/bin/sh
-# Inserez ici la commande proxmox
-# Command proxmox pour :
-# Obtenir la liste des VMs dispo
-# Generer les différentes pour lancer les VMs
-# Generer les assets pour les VMs
-FREE_VMIDS="$@"
-/bin/bash $PROXMOX_CONTROLLER_PATH/create.sh \$FREE_VMIDS
-deckmaster -deck $PROXMOX_CONTROLLER_PATH/main.deck
-EOF1
+
+printf "$STEP/$MAX_STEP Reussie !\n\n"
+STEP=$((STEP+1));
+
+# Etape 2: Création du fichier vm_list.sh ...
+printf "$STEP/$MAX_STEP Création du fichier start.sh...\n"
+cp $PWD/sub_scripts/vm_list.sh $PROXMOX_CONTROLLER_PATH/vm_list.sh 
+chmod +x "$PROXMOX_CONTROLLER_PATH/vm_list.sh"
+
+
+printf "$STEP/$MAX_STEP Reussie !\n\n"
+STEP=$((STEP+1));
+
+# Etape 3: Création du fichier start.sh
+printf "$STEP/$MAX_STEP : Création du fichier start.sh...\n"
+cp $PWD/sub_scripts/start.sh $PROXMOX_CONTROLLER_PATH/start.sh 
 chmod +x "$PROXMOX_CONTROLLER_PATH/start.sh"
 
+printf "$STEP/$MAX_STEP Reussie !\n\n"
+STEP=$((STEP+1));
+# Etape 4: Copie des icônes et templates
+printf "$STEP/$MAX_STEP : Copie des icônes...\n"
 cp -r -R $PWD/icons "$PROXMOX_CONTROLLER_PATH/assets"
+cp -r -R $PWD/templates "$PROXMOX_CONTROLLER_PATH/templates"
 
-cat <<EOF2 > "$PROXMOX_CONTROLLER_PATH/create.sh"
-#!/bin/bash
-ARG_LIST=(\$@)
-NUM_ARGS=\$#
-DECKCONFIG=""
-echo "test list arguments \$@"
 
-for ((i=0;i<=\$NUM_ARGS-1;i++))
-do
-    VMID=\${ARG_LIST[\$i]}
-    if [ \$i = 0 ]
-    then DECKCONFIG+=\$(cat <<DELIMITER
-[[keys]]
-    index = \$i
-    [keys.widget]
-        id = "button"
-        [keys.widget.config]
-            icon = "assets/\$VMID.png"
-            label = "\$VMID"
-            fontsize = 8
-        [keys.action]
-            command = "qm start \$VMID"
-DELIMITER
-)
-    else
-DECKCONFIG+=\$(cat <<DELIMITER
-
-[[keys]]
-    index = \$i
-    [keys.widget]
-        id = "button"
-        [keys.widget.config]
-            icon = "assets/\$VMID.png"
-            label = "\$VMID"
-            fontsize = 8
-        [keys.action]
-            command = "qm start \$VMID"
-DELIMITER
-)
-fi
-done
-
-if [ \$NUM_ARGS = 0 ] 
-then DECKCONFIG+=\$(cat <<DELIMITER
-[[keys]]
-    index = 5
-    [keys.widget]
-        id = "button"
-        [keys.widget.config]
-            icon = "assets/shutdown.png"
-            label = "shutdown"
-            fontsize = 8
-        [keys.action]
-            command = "shutdown -h now"
-DELIMITER
-)
-else
-DECKCONFIG+=\$(cat <<DELIMITER
-
-[[keys]]
-    index = 5
-    [keys.widget]
-        id = "button"
-        [keys.widget.config]
-            icon = "assets/shutdown.png"
-            label = "shutdown"
-            fontsize = 8
-        [keys.action]
-            command = "shutdown -h now"
-DELIMITER
-)
-fi
-
-cat <<EOF > "$PROXMOX_CONTROLLER_PATH/main.deck"
-\$DECKCONFIG
-EOF
-EOF2
+printf "$STEP/$MAX_STEP Reussie !\n\n"
+STEP=$((STEP+1));
+# Etape 5: Création du fichier create.sh
+printf "$STEP/$MAX_STEP : Création du fichier create.sh...\n"
+cp $PWD/sub_scripts/create.sh $PROXMOX_CONTROLLER_PATH/create.sh
 chmod +x "$PROXMOX_CONTROLLER_PATH/create.sh"
-# Etape 5: Création du fichier de génération de fichier deck
 
-# Étape 1: Télécharger et installer le package
-echo "Téléchargement et installation du package..."
+printf "$STEP/$MAX_STEP Reussie !\n\n"
+STEP=$((STEP+1));
+# Étape 6: Télécharger et installer le package
+printf "$STEP/$MAX_STEP : Téléchargement et installation du package...\n"
 wget -O "/tmp/$PACKAGE_NAME" "$PACKAGE_URL"
 apt install -y "/tmp/$PACKAGE_NAME"
 rm "/tmp/$PACKAGE_NAME"
 
-# Étape 2: Créer un fichier .rules dans /etc/udev/rules.d/
-echo "Création du fichier udev rules..."
-cat <<EOL > "$UDEV_RULES_FILE"
-# Version 1
-SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0060", MODE:="666", GROUP="plugdev", SYMLINK+="streamdeck"
+printf "$STEP/$MAX_STEP Reussie !\n\n"
+STEP=$((STEP+1));
+# Étape 7: Créer un fichier .rules dans /etc/udev/rules.d/
+printf "$STEP/$MAX_STEP : Création du fichier udev rules...\n"
+cp $PWD/files/99-streamdeck.rules $UDEV_RULES_FILE
 
-# Version 2
-SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="006d", MODE:="666", GROUP="plugdev", SYMLINK+="streamdeck"
-
-# Version 3
-SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0080", MODE:="666", GROUP:="plugdev", SYMLINK+="streamdeck"
-
-# Version mini
-SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0063", MODE:="0660",GROUP="plugdev", SYMLINK+="streamdeck-mini"
-
-# Version xl
-SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="006c", MODE:="0660", GROUP="plugdev", SYMLINK+="streamdeck-xl"
-EOL
-
-echo "Changement des permissions pour /dev/uinput..."
+printf "$STEP/$MAX_STEP Reussie !\n\n"
+STEP=$((STEP+1));
+# Étape 8: Changer le propriétaire de /dev/uinput afin d'éviter les messages d'errreurs
+printf "$STEP/$MAX_STEP : Changement du propriétaire de /dev/uinput...\n"
 chown root:plugdev /dev/uinput
 
-# Étape 3: Créer un fichier .path dans .config/systemd/user/
-echo "Création du fichier systemd path..."
-cat <<EOL > "$SYSTEMD_PATH_FILE"
-[Unit]
-Description="Stream Deck Device Path"
+printf "$STEP/$MAX_STEP Reussie !\n\n"
+STEP=$((STEP+1));
+# Étape 9: Créer un fichier .path dans .config/systemd/user/
+printf "$STEP/$MAX_STEP : Création du fichier systemd path...\n"
+cp $PWD/files/streamdeck.path $SYSTEMD_PATH_FILE
 
-[Path]
-# the device name will be different if you use streamdeck-mini or streamdeck-xl
-PathExists=/dev/streamdeck-mini
-Unit=streamdeck.service
+printf "$STEP/$MAX_STEP Reussie !\n\n"
+STEP=$((STEP+1));
+# Étape 10: Créer un fichier .service dans .config/systemd/user/
+printf "$STEP/$MAX_STEP : Création du fichier systemd service...\n"
+cp $PWD/files/streamdeck.service $SYSTEMD_SERVICE_FILE
+sed -i "s/VMID_LIST/$@/g" "$SYSTEMD_SERVICE_FILE" 
+# Temporairement on utilise un argument pour vm_list 
+# mais à terme, on aura plus d'arguements car vm_list 
+# va fournir les arguments aux autres scripts
 
-[Install]
-WantedBy=default.target
-EOL
+printf "$STEP/$MAX_STEP Reussie !\n\n"
+STEP=$((STEP+1));
+# Etape 11: Recharger les règles udev
+printf "$STEP/$MAX_STEP : Rechargement des règles udev...\n";
+udevadm control --reload-rules;
 
-
-
-# Étape 4: Créer un fichier .service dans .config/systemd/user/
-echo "Création du fichier systemd service..."
-cat <<EOL > "$SYSTEMD_SERVICE_FILE"
-[Unit]
-Description=Deckmaster Service
-
-[Service]
-# adjust the path to deckmaster and .deck file to suit your needs
-ExecStart=/bin/sh $PROXMOX_CONTROLLER_PATH/start.sh $PROXMOX_CONTROLLER_PATH
-ExecReload=kill -HUP $MAINPID
-
-[Install]
-WantedBy=default.target
-EOL
-
-# Etape 5: Recharger les règles udev
-
-udevadm control --reload-rules
-
-# Étape 5: Activer et démarrer streamdeck.path
-echo "Activation et démarrage du chemin systemd..."
+printf "$STEP/$MAX_STEP Reussie !\n\n";
+STEP=$((STEP+1));
+# Étape 12: Activer et démarrer streamdeck.path
+printf "$STEP/$MAX_STEP : Activation et démarrage du chemin systemd...\n"
 
 USER_ID=$(id -u "${SUDO_USER}")
 loginctl enable-linger "$SUDO_USER"
@@ -187,5 +107,7 @@ runuser -u "${SUDO_USER}" -- bash -c "XDG_RUNTIME_DIR=/run/user/$USER_ID systemc
 runuser -u "${SUDO_USER}" -- bash -c "XDG_RUNTIME_DIR=/run/user/$USER_ID systemctl --user enable streamdeck.path"
 runuser -u "${SUDO_USER}" -- bash -c "XDG_RUNTIME_DIR=/run/user/$USER_ID systemctl --user start streamdeck.path"
 
-echo "Script terminé avec succès !"
+printf "$STEP/$MAX_STEP Reussie !\n\n"
+
+printf "Script terminé avec succès !\n\n"
 exit 0

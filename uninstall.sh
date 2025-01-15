@@ -32,3 +32,5 @@ echo "Désactivation et arrêt du chemin systemd..."
 USER_ID=$(id -u "${SUDO_USER}")
 loginctl enable-linger "$SUDO_USER"
 runuser -u "${SUDO_USER}" -- bash -c "XDG_RUNTIME_DIR=/run/user/$USER_ID systemctl --user daemon-reload"
+
+pkill -f deckmaster
