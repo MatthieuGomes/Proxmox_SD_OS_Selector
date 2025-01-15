@@ -1,0 +1,12 @@
+[[keys]]
+    index = BUTTON_ID
+    [keys.widget]
+        id = "button"
+        [keys.widget.config]
+            icon = "assets/VMID.png"
+            label = "VMID"
+            fontsize = 8
+        [keys.action]
+            command = "qm start VMID"  
+EOL
+EOL

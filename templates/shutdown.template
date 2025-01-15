@@ -1,0 +1,10 @@
+[[keys]]
+    index = 5
+    [keys.widget]
+        id = "button"
+        [keys.widget.config]
+            icon = "assets/shutdown.png"
+            label = "shutdown"
+            fontsize = 8
+        [keys.action]
+            command = "shutdown -h now"
