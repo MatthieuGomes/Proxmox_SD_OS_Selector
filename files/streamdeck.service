@@ -3,7 +3,9 @@ Description=Deckmaster Service
 
 [Service]
 # adjust the path to deckmaster and .deck file to suit your needs
-ExecStart=/bin/sh /home/matthieu/.config/proxmox_controller/start.sh $(./home/matthieu/.config/proxmox_controller/vm_list.sh VMID_LIST
+Type=Simple
+ExecStartPre=/bin/bash -c '%h/.config/proxmox_controller/create.sh'
+ExecStart=deckmaster -deck %h/.config/proxmox_controller/main.deck
 ExecReload=kill -HUP 
 
 [Install]
